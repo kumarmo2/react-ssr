@@ -92,7 +92,10 @@ impl<'a> ReactSSR<'a> {
             let component_key = v8::String::new(scope, "Component").unwrap();
             let component = proxy_val.get(scope, component_key.into());
             match component {
-                Some(_) => println!("found component"),
+                Some(val) => {
+                    println!("found component");
+                    println!("is undefined: {}", val.is_null_or_undefined());
+                }
                 None => println!("no component found"),
             }
 
