@@ -1,12 +1,14 @@
 use rusty_v8 as v8;
+use serde::Serialize;
+use serde_json::to_string;
 use v8::{
     Context, ContextScope, CreateParams, FunctionCallbackArguments, FunctionTemplate, HandleScope,
     NewStringType, ReturnValue, Script,
 };
 
-pub struct ReactSSR {
+pub struct ReactSSR<'a> {
     _isolate: v8::OwnedIsolate,
-    _source: String,
+    _source: &'a str,
 }
 
 // this method will be called from javascript, will be passed rendered string using ReactDOMServer
@@ -23,8 +25,8 @@ fn set_html(scope: &mut HandleScope, args: FunctionCallbackArguments, _rv: Retur
     global.set(scope, html_key.into(), html.into());
 }
 
-impl ReactSSR {
-    pub fn new(source: String) -> Self {
+impl<'a> ReactSSR<'a> {
+    pub fn new(source: &'a str) -> Self {
         // V8 must be initialized.
         v8::V8::assert_initialized();
 
@@ -37,11 +39,15 @@ impl ReactSSR {
     }
 }
 
-impl ReactSSR {
+impl<'a> ReactSSR<'a> {
     // TODO: add props as well
 
-    // TODO: Add exception handling.
-    pub fn render_to_string(&mut self) -> Option<String> {
+    // TODO: Add exception handling generated from v8.
+
+    //TODO: Add rust error handling.
+
+    // TODO: use dynamic dispatching here instead of static.
+    pub fn render_to_string<T: Serialize>(&mut self, props: Option<T>) -> Option<String> {
         let isolate = &mut self._isolate;
 
         // Create new Handle scope.
@@ -63,10 +69,18 @@ impl ReactSSR {
         let set_html_val = set_html_template.get_function(scope).unwrap();
         proxy_val.set(scope, set_html_key.into(), set_html_val.into());
 
+        if let Some(props) = props {
+            let props_key = v8::String::new(scope, "props").unwrap();
+            let props_string = &to_string(&props).unwrap();
+            let props_val = v8::String::new(scope, props_string).unwrap();
+            proxy_val.set(scope, props_key.into(), props_val.into());
+        }
+
         let source =
             v8::String::new_from_utf8(scope, self._source.as_bytes(), NewStringType::Normal)
                 .unwrap();
 
+        // TODO: Can we compile it once and keep
         let script = Script::compile(scope, source, None).unwrap();
 
         script.run(scope).and_then(|_| {
