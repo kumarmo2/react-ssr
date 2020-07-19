@@ -89,6 +89,13 @@ impl<'a> ReactSSR<'a> {
             let html_val = global.get(scope, html_key.into()).unwrap();
             let html_string = html_val.to_string(scope).unwrap();
 
+            let component_key = v8::String::new(scope, "Component").unwrap();
+            let component = proxy_val.get(scope, component_key.into());
+            match component {
+                Some(_) => println!("found component"),
+                None => println!("no component found"),
+            }
+
             let html = html_string.to_rust_string_lossy(scope);
             Some(html)
         })
